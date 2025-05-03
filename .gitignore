@@ -1,0 +1,15 @@
+# 忽略编译中间文件，记得自己添加空文件夹
+Listings
+Objects
+# 忽略库文件，记得自己添加库文件
+Library
+Start
+# 忽略keilkill.bat
+keilkill.bat
+# 忽略调试文件
+DebugConfig
+# 忽略VScode配置文件
+.vscode
+# 忽略所有工程缓存文件
+Project.*
+!Project.uvprojx
