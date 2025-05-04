@@ -7,11 +7,11 @@
 extern PID_t Speed_Control_Left;
 extern PID_t Speed_Control_Right;
 extern PID_t OOuter;
-#define PI 3.14159265358979323846		 // 圆周率
+#define PI 3.14159265358979323846		   // 圆周率
 #define encoder_pulses_per_revolution 13.0 // 电机编码器线数
-#define gear_reduction_ratio 20.0			 // 减速比
-#define wheel_diameter_mm 48.0			 // 轮子直径(mm)
-#define pulse 4.0							 // 编码器脉冲倍频（一般不需要改）
+#define gear_reduction_ratio 20.0		   // 减速比
+#define wheel_diameter_mm 48.0			   // 轮子直径(mm)
+#define pulse 4.0						   // 编码器脉冲倍频（一般不需要改）
 
 /// @brief 超级pid模板
 /// @param 无
@@ -126,6 +126,7 @@ void PID_Sim_Update(PID_t *p)
 	}
 }
 
+
 /**
  * 函    数：定时中断初始化
  * 参    数：无
@@ -186,36 +187,70 @@ float TIM3_PID_Limit(float x, float min, float max)
 
 void Update_Speed_By_Position(float outer_out, float error_pos, uint8_t wheel_id)
 {
-    float speed_cmd;
+	float speed_cmd;
 
-    if (abs(error_pos) < 10)
-    {
-        speed_cmd = 0;
-    }
-    else if (abs(error_pos) < 50)
-    {
-        speed_cmd = TIM3_PID_Limit(outer_out, -15, 15);
-    }
-    else if (abs(error_pos) < 100)
-    {
-        speed_cmd = TIM3_PID_Limit(outer_out, -30, 30);
-    }
-    else
-    {
-        speed_cmd = TIM3_PID_Limit(outer_out, -50, 50);
-    }
+	if (abs(error_pos) < 10)
+	{
+		speed_cmd = 0;
+	}
+	else if (abs(error_pos) < 50)
+	{
+		speed_cmd = TIM3_PID_Limit(outer_out, -15, 15);
+	}
+	else if (abs(error_pos) < 100)
+	{
+		speed_cmd = TIM3_PID_Limit(outer_out, -30, 30);
+	}
+	else
+	{
+		speed_cmd = TIM3_PID_Limit(outer_out, -50, 50);
+	}
 
-    if (wheel_id == 0)
-	Speed_Control_Left.Target = speed_cmd;
-    else if (wheel_id == 1)
-	Speed_Control_Right.Target = speed_cmd;
+	if (wheel_id == 0)
+		Speed_Control_Left.Target = speed_cmd;
+	else if (wheel_id == 1)
+		Speed_Control_Right.Target = speed_cmd;
 }
 
-
-/// @brief 直接输入位置即可（单位：mm）
-/// @param Actual_Location 
-float TIM3_PID_Locate(float Actual_Location)
+// 计算每个脉冲对应的位移（单位：cm）
+float get_distance_per_pulse_cm()
 {
-	return Actual_Location*encoder_pulses_per_revolution*gear_reduction_ratio*pulse/PI/wheel_diameter_mm;
+	return (PI * wheel_diameter_mm) / (encoder_pulses_per_revolution * gear_reduction_ratio * pulse * 10);
 }
 
+// 传入累计脉冲数，计算总距离（单位：cm）
+float calculate_distance_cm(int pulse_count)
+{
+	float distance_per_pulse_cm = get_distance_per_pulse_cm();
+	return pulse_count * distance_per_pulse_cm;
+}
+
+// /// @brief 直接输入位置即可（单位：mm）
+// /// @param Actual_Location
+// float TIM3_PID_Locate(float Actual_Location)
+// {
+// 	return Actual_Location*encoder_pulses_per_revolution*gear_reduction_ratio*pulse/PI/wheel_diameter_mm;
+// }
+
+// float TIM3_Calculate_Pulse(float Pulse)
+// {
+// 	return Pulse*wheel_diameter_mm*PI/gear_reduction_ratio/encoder_pulses_per_revolution/wheel_diameter_mm;
+
+// }
+
+// if (Count3 >= 40) // 外环（位置）
+//  {
+//      Count3 = 0;
+//      //赋值左右距离
+//      distance_left = calculate_distance_cm(Location_Left);
+//      distance_right = calculate_distance_cm(Location_Right);
+
+//     Position_Control_Left.Actual = distance_left;
+//     Position_Control_Right.Actual = distance_right;
+
+//     PID_Sim_Update(&Position_Control_Left);
+//     PID_Sim_Update(&Position_Control_Right);
+
+//     Base_Speed = Position_Control_Left.Out;
+//     Base_Speed = Position_Control_Right.Out;
+// }

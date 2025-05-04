@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-uint8_t USART3_Serial_RxData;		//定义串口接收的数据变量
-uint8_t USART3_Serial_RxFlag;		//定义串口接收的标志位变量
+uint8_t Serial_TxPacket[4];				//定义发送数据包数组，数据包格式：FF 01 02 03 04 FE
+uint8_t Serial_RxPacket[4];				//定义接收数据包数组
+uint8_t USART3_Serial_RxFlag;					//定义接收数据包标志位
 
 /**
   * 函    数：串口三初始化
@@ -169,16 +170,6 @@ uint8_t USART3_Serial_GetRxFlag(void)
 }
 
 /**
-  * 函    数：获取串口接收的数据
-  * 参    数：无
-  * 返 回 值：接收的数据，范围：0~255
-  */
-uint8_t USART3_Serial_GetRxData(void)
-{
-	return USART3_Serial_RxData;			//返回接收的数据变量
-}
-
-/**
   * 函    数：USART3中断函数
   * 参    数：无
   * 返 回 值：无
@@ -188,12 +179,43 @@ uint8_t USART3_Serial_GetRxData(void)
   */
 void USART3_IRQHandler(void)
 {
+	static uint8_t RxState = 0;		//定义表示当前状态机状态的静态变量
+	static uint8_t pRxPacket = 0;	//定义表示当前接收数据位置的静态变量
 	if (USART_GetITStatus(USART3, USART_IT_RXNE) == SET)		//判断是否是USART3的接收事件触发的中断
 	{
-		USART3_Serial_RxData = USART_ReceiveData(USART3);				//读取数据寄存器，存放在接收的数据变量
-		USART3_Serial_RxFlag = 1;										//置接收标志位变量为1
-		USART_ClearITPendingBit(USART3, USART_IT_RXNE);			//清除USART3的RXNE标志位
-																//读取数据寄存器会自动清除此标志位
-																//如果已经读取了数据寄存器，也可以不执行此代码
+		uint8_t RxData = USART_ReceiveData(USART3);				//读取数据寄存器，存放在接收的数据变量
+		
+		/*使用状态机的思路，依次处理数据包的不同部分*/
+		
+		/*当前状态为0，接收数据包包头*/
+		if (RxState == 0)
+		{
+			if (RxData == 0xFF)			//如果数据确实是包头
+			{
+				RxState = 1;			//置下一个状态
+				pRxPacket = 0;			//数据包的位置归零
+			}
+		}
+		/*当前状态为1，接收数据包数据*/
+		else if (RxState == 1)
+		{
+			Serial_RxPacket[pRxPacket] = RxData;	//将数据存入数据包数组的指定位置
+			pRxPacket ++;				//数据包的位置自增
+			if (pRxPacket >= 4)			//如果收够4个数据
+			{
+				RxState = 2;			//置下一个状态
+			}
+		}
+		/*当前状态为2，接收数据包包尾*/
+		else if (RxState == 2)
+		{
+			if (RxData == 0xFE)			//如果数据确实是包尾部
+			{
+				RxState = 0;			//状态归0
+				USART3_Serial_RxFlag = 1;		//接收数据包标志位置1，成功接收一个数据包
+			}
+		}
+		
+		USART_ClearITPendingBit(USART3, USART_IT_RXNE);		//清除标志位
 	}
 }
